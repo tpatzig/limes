@@ -764,6 +764,13 @@ func Test_ProjectOperations(t *testing.T) {
 		ExpectStatus: 200,
 		ExpectBody:   assert.JSONFixtureFile("./fixtures/project-get-details-berlin.json"),
 	}.Check(t, router)
+	//check rendering of rates
+	assert.HTTPRequest{
+		Method:       "GET",
+		Path:         "/v1/domains/uuid-for-germany/projects/uuid-for-berlin?rates=only",
+		ExpectStatus: 200,
+		ExpectBody:   assert.JSONFixtureFile("./fixtures/project-get-rates-berlin.json"),
+	}.Check(t, router)
 	//dresden has a case of backend quota != quota
 	assert.HTTPRequest{
 		Method:       "GET",

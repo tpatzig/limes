@@ -28,6 +28,8 @@ projects in that token's domain. With project member permission, shows that toke
 * `area`: Limit query to resources in services in this area. May be given multiple times.
 * `resource`: When combined, with `?service=`, limit query to that resource
   (e.g. `?service=compute&resource=instances`). May be given multiple times.
+* `rates`: If given, list rate limits for resources that support it. (See [subheading](#rate-limits) below for details.)
+  When combined with `?service=`, limit query to these rates (e.g. `?service=compute&rates). May be given multiple times.
 * `detail`: If given, list subresources for resources that support it. (See subheading below for details.)
 
 Returns 200 (OK) on success. Result is a JSON document like:
@@ -62,6 +64,31 @@ Returns 200 (OK) on success. Result is a JSON document like:
               "usage": 2048
             }
           ],
+          "rates": [
+            {
+              "target_type_uri": "service/compute/servers",
+              "actions": [
+                {
+                  "name": "create",
+                  "limit": "5r/m"
+                }
+              ]
+            },
+            {
+              "target_type_uri": "service/compute/servers/action",
+              "actions": [
+                {
+                  "name": "update/addFloatingIp",
+                  "limit": "2r/m"
+                },
+                {
+                  "name": "update/removeFloatingIp",
+                  "limit": "2r/30m"
+                }
+              ]
+            }
+          ],
+        ],
           "scraped_at": 1486738599
         },
         {
@@ -154,6 +181,47 @@ like this:
 
 The fields in the subresource objects are specific to the resource type, and are not mandated by this specification.
 Please refer to the [documentation for the quota plugin that generates it](../operators/config.md) for details.
+
+### Rate limits
+
+If the `?rates` query parameter is given, rate limits for the service are included in the response.
+Additionally the response can be limited to only include rate limits by providing the query parameter `?rates=only`.
+Rate limits can be used to control the traffic received by an API in order to prevent service capacities from being exhausted.
+They can be set on 2 levels:
+(1) On *cluster* level in order to ensure a service does not receive more request than it can handle
+(2) Per *project* in order to ensure a fair usage among projects within a cluster
+
+A prerequisite to traffic control is a normative scheme of classification for actions initiated by users.
+The [CADF specification](https://www.dmtf.org/sites/default/files/standards/documents/DSP2038_1.1.0.pdf) established such a classification for the OpenStack ecosystem.
+In terms of rate limits, requests sent to and OpenStack API are characterized by their `target_type_uri` and `action`.
+The `target_type_uri` represents the request path against which the activity was performed and the `action` the activity that was performed.
+
+A rate limit entity in limes, as shown at the end of this subsection, consist of a `target_type_uri`, a list of `actions`, a `limit` and a `defaultLimit`.
+The field `limit` defines the maximum number of requests within a rate limit window per project.
+While `defaultLimits` is used to reflect the default rate limit set on cluster level.
+
+A rate limit entity in limes, as shown at the end of this subsection, consist of a `target_type_uri` which characterizes the request path and a list of `actions`.
+An action has a `name` and a `limit`.
+Valid action names can be `create`, `read`, `read/list`, `update`, `delete`, `authenticate`, etc. .
+Limits are defined using the following syntax: `<n>r/<m><unit>`.
+The factor `<m>` is optional, but must not be 0.
+Valid units are `ms`, `s`, `m`, `h`.
+Example limits: Setting a limit of `1r/5m` allows 1 request every 5 minutes. The limit `5r/m` allows 5 request every minute.
+
+The following example defines a limit of 5 server creations per minute in the compute (nova) service.
+
+```json
+{
+  "target_type_uri": "service/compute/servers",
+  "actions": [
+    {
+      "name": "create",
+      "limit": "5r/m",
+      "defaultLimit": "10r/m"
+    }
+  ]
+}
+```
 
 ## GET /v1/domains
 ## GET /v1/domains/:domain\_id
@@ -544,6 +612,40 @@ values.
 
 Set quotas for the given project. Requires a domain-admin token for the specified domain. Other than that, the call
 works in the same way as `PUT /domains/:domain_id`.
+In addition, project specific rate limits can be set as shown below.
+
+```json
+{
+  "projects": [
+    {
+      "id": "8ad3bf54-2401-435e-88ad-e80fbf984c19",
+      "services": [
+        {
+          "type": "compute",
+          "area": "compute",
+          "rates": [
+            {
+              "target_type_uri": "service/storage/object/account/container",
+              "actions": [
+                {
+                  "name": "update",
+                  "limit": "2r/m"
+                },
+                {
+                  ...
+                }
+              ]
+            }
+          ]
+        },
+        {
+          ...
+        }
+      ]
+    }
+  ]
+}
+```
 
 ## PUT /v1/clusters/:cluster\_id
 

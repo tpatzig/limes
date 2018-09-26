@@ -49,6 +49,15 @@ const (
 	UnitExbibytes Unit = "EiB"
 	//UnitUnspecified is used as a placeholder when the unit is not known.
 	UnitUnspecified Unit = "UNSPECIFIED"
+
+  //UnitSecond is exactly that.
+  UnitSecond Unit = "s"
+  //UnitMinute is exactly that.
+  UnitMinute Unit = "m"
+  //UnitHour is exactly that.
+  UnitHour Unit = "h"
+  //UnitDay is exactly that.
+  UnitDay Unit = "d"
 )
 
 //Base returns the base unit of this unit. For units defined as a multiple of
@@ -68,6 +77,14 @@ func (u Unit) Base() (Unit, uint64) {
 		return UnitBytes, 1 << 50
 	case UnitExbibytes:
 		return UnitBytes, 1 << 60
+  case UnitSecond:
+    return UnitSecond, 1
+  case UnitMinute:
+    return UnitMinute, 1
+  case UnitHour:
+    return UnitHour, 1
+  case UnitDay:
+    return UnitDay, 1
 	default:
 		return u, 1
 	}

@@ -1,0 +1,67 @@
+{
+  "project": {
+    "id": "uuid-for-berlin",
+    "name": "berlin",
+    "parent_id": "uuid-for-germany",
+    "services": [
+      {
+        "type": "shared",
+        "area": "shared",
+        "rates": [
+          {
+            "targetTypeURI": "service/shared/action",
+            "actions": [
+              {
+                "name": "create",
+                "limit": "5r/m"
+              }
+            ]
+          },
+          {
+            "targetTypeURI": "service/shared/hase",
+            "actions": [
+              {
+                "name": "update",
+                "limit": "2r/m"
+              },
+              {
+                "name": "delete",
+                "limit": "2r/30m"
+              }
+            ]
+          }
+        ],
+        "scraped_at": 22
+      },
+      {
+        "type": "unshared",
+        "area": "unshared",
+        "rates": [
+          {
+            "targetTypeURI": "service/unshared/action",
+            "actions": [
+              {
+                "name": "create",
+                "limit": "5r/m"
+              }
+            ]
+          },
+          {
+            "targetTypeURI": "service/unshared/hase",
+            "actions": [
+              {
+                "name": "update",
+                "limit": "2r/m"
+              },
+              {
+                "name": "delete",
+                "limit": "2r/30m"
+              }
+            ]
+          }
+        ],
+        "scraped_at": 11
+      }
+    ]
+  }
+}
