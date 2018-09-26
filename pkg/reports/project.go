@@ -24,11 +24,12 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
+	"database/sql"
 	"github.com/sapcc/limes/pkg/db"
 	"github.com/sapcc/limes/pkg/limes"
 	"github.com/sapcc/limes/pkg/util"
+	"time"
 )
 
 //Project contains all data about resource usage in a project.
@@ -148,15 +149,10 @@ func GetProjects(cluster *limes.Cluster, domainID int64, projectID *int64, dbi d
 		queryStr = strings.Replace(queryStr, "pr.subresources", "''", 1)
 	}
 
+	projects := make(projects)
 	queryStr, joinArgs := filter.PrepareQuery(queryStr)
 	whereStr, whereArgs := db.BuildSimpleWhereClause(fields, len(joinArgs))
-	rows, err := dbi.Query(fmt.Sprintf(queryStr, whereStr), append(joinArgs, whereArgs...)...)
-	if err != nil {
-		return nil, err
-	}
-
-	projects := make(map[string]*Project)
-	for rows.Next() {
+	err := db.ForeachRow(db.DB, fmt.Sprintf(queryStr, whereStr), append(joinArgs, whereArgs...), func(rows *sql.Rows) error {
 		var (
 			projectUUID       string
 			projectName       string
@@ -175,58 +171,24 @@ func GetProjects(cluster *limes.Cluster, domainID int64, projectID *int64, dbi d
 			&quota, &usage, &backendQuota, &subresources,
 		)
 		if err != nil {
-			rows.Close()
-			return nil, err
+			return err
 		}
 
-		project, exists := projects[projectUUID]
-		if !exists {
-			project = &Project{
-				UUID:       projectUUID,
-				Name:       projectName,
-				ParentUUID: projectParentUUID,
-				Services:   make(ProjectServices),
-			}
-			projects[projectUUID] = project
-		}
+		project, service, resource := projects.Find(cluster, projectUUID, serviceType, resourceName)
 
-		if serviceType == nil {
-			continue
-		}
+		project.Name = projectName
+		project.ParentUUID = projectParentUUID
 
-		service, exists := project.Services[*serviceType]
-		if !exists {
-			if !cluster.HasService(*serviceType) {
-				continue
-			}
-			service = &ProjectService{
-				ServiceInfo: cluster.InfoForService(*serviceType),
-				Resources:   make(ProjectResources),
-			}
-			if scrapedAt != nil {
-				service.ScrapedAt = time.Time(*scrapedAt).Unix()
-			}
-			project.Services[*serviceType] = service
-		}
-
-		if resourceName == nil {
-			continue
-		}
-		if !cluster.HasResource(*serviceType, *resourceName) {
-			continue
+		if scrapedAt != nil {
+			service.ScrapedAt = time.Time(*scrapedAt).Unix()
 		}
 
 		subresourcesValue := ""
 		if subresources != nil {
 			subresourcesValue = *subresources
 		}
+		resource.Subresources = util.JSONString(subresourcesValue)
 
-		resource := &ProjectResource{
-			ResourceInfo: cluster.InfoForResource(*serviceType, *resourceName),
-			Usage:        *usage,
-			BackendQuota: nil, //see below
-			Subresources: util.JSONString(subresourcesValue),
-		}
 		if usage != nil {
 			resource.Usage = *usage
 		}
@@ -236,14 +198,9 @@ func GetProjects(cluster *limes.Cluster, domainID int64, projectID *int64, dbi d
 				resource.BackendQuota = backendQuota
 			}
 		}
-		service.Resources[*resourceName] = resource
-	}
-	err = rows.Err()
-	if err != nil {
-		rows.Close()
-		return nil, err
-	}
-	err = rows.Close()
+
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -260,4 +217,46 @@ func GetProjects(cluster *limes.Cluster, domainID int64, projectID *int64, dbi d
 	}
 
 	return result, nil
+}
+
+type projects map[string]*Project
+
+func (p projects) Find(cluster *limes.Cluster, projectUUID string, serviceType, resourceName *string) (*Project, *ProjectService, *ProjectResource) {
+	project, exists := p[projectUUID]
+	if !exists {
+		project = &Project{
+			UUID:     projectUUID,
+			Services: make(ProjectServices),
+		}
+		p[projectUUID] = project
+	}
+
+	if serviceType == nil {
+		return project, nil, nil
+	}
+
+	service, exists := project.Services[*serviceType]
+	if !exists {
+		if !cluster.HasService(*serviceType) {
+			return project, nil, nil
+		}
+
+		service = &ProjectService{
+			ServiceInfo: cluster.InfoForService(*serviceType),
+			Resources:   make(ProjectResources),
+		}
+
+		project.Services[*serviceType] = service
+	}
+
+	if resourceName == nil || !cluster.HasResource(*serviceType, *resourceName) {
+		return project, service, nil
+	}
+
+	resource := &ProjectResource{
+		ResourceInfo: cluster.InfoForResource(*serviceType, *resourceName),
+	}
+	service.Resources[*resourceName] = resource
+
+	return project, service, resource
 }
