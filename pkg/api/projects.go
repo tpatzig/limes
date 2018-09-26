@@ -50,8 +50,7 @@ func (p *v1Provider) ListProjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, withSubresources := r.URL.Query()["detail"]
-	projects, err := reports.GetProjects(cluster, dbDomain.ID, nil, db.DB, reports.ReadFilter(r), withSubresources)
+	projects, err := reports.GetProjects(cluster, dbDomain.ID, nil, db.DB, reports.ReadProjectFilter(r))
 	if respondwith.ErrorText(w, err) {
 		return
 	}
@@ -78,8 +77,7 @@ func (p *v1Provider) GetProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, withSubresources := r.URL.Query()["detail"]
-	project, err := GetProjectReport(cluster, *dbDomain, *dbProject, db.DB, reports.ReadFilter(r), withSubresources)
+	project, err := GetProjectReport(cluster, *dbDomain, *dbProject, db.DB, reports.ReadProjectFilter(r))
 	if respondwith.ErrorText(w, err) {
 		return
 	}
@@ -336,8 +334,7 @@ func (p *v1Provider) PutProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//otherwise, report success
-	_, withSubresources := r.URL.Query()["detail"]
-	projectReport, err := GetProjectReport(updater.Cluster, *updater.Domain, *updater.Project, db.DB, reports.ReadFilter(r), withSubresources)
+	projectReport, err := GetProjectReport(updater.Cluster, *updater.Domain, *updater.Project, db.DB, reports.ReadProjectFilter(r))
 	if respondwith.ErrorText(w, err) {
 		return
 	}

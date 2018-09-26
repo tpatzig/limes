@@ -137,7 +137,7 @@ var projectReportQuery = `
 
 //GetProjects returns Project reports for all projects in the given domain or,
 //if projectID is non-nil, for that project only.
-func GetProjects(cluster *limes.Cluster, domainID int64, projectID *int64, dbi db.Interface, filter Filter, withSubresources bool) ([]*Project, error) {
+func GetProjects(cluster *limes.Cluster, domainID int64, projectID *int64, dbi db.Interface, filter ProjectFilter) ([]*Project, error) {
 	fields := map[string]interface{}{"p.domain_id": domainID}
 	if projectID != nil {
 		fields["p.id"] = *projectID
@@ -145,7 +145,7 @@ func GetProjects(cluster *limes.Cluster, domainID int64, projectID *int64, dbi d
 
 	//avoid collecting the potentially large subresources strings when possible
 	queryStr := projectReportQuery
-	if !withSubresources {
+	if !filter.withSubResources {
 		queryStr = strings.Replace(queryStr, "pr.subresources", "''", 1)
 	}
 
