@@ -187,11 +187,11 @@ var projectReportQuery = `
 `
 
 var projectRatesReportQuery = `
-	SELECT r.project_id, r.target_type_uri, r.actions,
-		FROM project_rate_limits r
-		LEFT OUTER JOIN project_services ps ON ps.project_id = r.project_id {{AND ps.type = $service_type}}
-	  LEFT OUTER JOIN project_resources pr ON pr.service_id = ps.id {{AND pr.name = $resource_name}}
-	WHERE %s
+	SELECT p.uuid, ps.type, prl.target_type_uri, prl.action, prl.rate_limit
+	  FROM projects p
+	  LEFT OUTER JOIN project_services ps ON ps.project_id = p.id {{AND ps.type = $service_type}}
+	  LEFT OUTER JOIN project_rate_limits prl ON prl.service_id = ps.id
+	 WHERE %s
 `
 
 //GetProjects returns Project reports for all projects in the given domain or,
@@ -206,16 +206,6 @@ func GetProjects(cluster *limes.Cluster, domainID int64, projectID *int64, dbi d
 	queryStr := projectReportQuery
 	if !filter.withSubResources {
 		queryStr = strings.Replace(queryStr, "pr.subresources", "''", 1)
-	}
-
-	//only show the rate limits. remove everything else.
-	if filter.onlyRates {
-		replacements := []string{
-			"pr.quota", "pr.usage", "pr.backend_quota", "pr.subresources",
-		}
-		for _, toReplace := range replacements {
-			queryStr = strings.Replace(queryStr, toReplace, "''", 1)
-		}
 	}
 
 	projects := make(projects)
@@ -250,23 +240,25 @@ func GetProjects(cluster *limes.Cluster, domainID int64, projectID *int64, dbi d
 		project.Name = projectName
 		project.ParentUUID = projectParentUUID
 
-		if scrapedAt != nil {
-			service.ScrapedAt = time.Time(*scrapedAt).Unix()
+		if service != nil {
+			if scrapedAt != nil {
+				service.ScrapedAt = time.Time(*scrapedAt).Unix()
+			}
 		}
 
-		subresourcesValue := ""
-		if subresources != nil {
-			subresourcesValue = *subresources
-		}
-		resource.Subresources = util.JSONString(subresourcesValue)
+		if resource != nil {
+			if subresources != nil {
+				resource.Subresources = util.JSONString(*subresources)
+			}
 
-		if usage != nil {
-			resource.Usage = *usage
-		}
-		if quota != nil {
-			resource.Quota = *quota
-			if backendQuota != nil && (*backendQuota < 0 || uint64(*backendQuota) != *quota) {
-				resource.BackendQuota = backendQuota
+			if usage != nil {
+				resource.Usage = *usage
+			}
+			if quota != nil {
+				resource.Quota = *quota
+				if backendQuota != nil && (*backendQuota < 0 || uint64(*backendQuota) != *quota) {
+					resource.BackendQuota = backendQuota
+				}
 			}
 		}
 
@@ -277,41 +269,40 @@ func GetProjects(cluster *limes.Cluster, domainID int64, projectID *int64, dbi d
 	}
 
 	//query project rate limits
-	queryStr, joinArgs = filter.PrepareQuery(projectRatesReportQuery)
-	whereStr, whereArgs = db.BuildSimpleWhereClause(fields, len(joinArgs))
-	err = db.ForeachRow(db.DB, fmt.Sprintf(queryStr, whereStr), append(joinArgs, whereArgs...), func(rows *sql.Rows) error {
-		var (
-			serviceID,
-			targetTypeURI,
-			action,
-			limit *string
-		)
-		err := rows.Scan(&serviceID, &targetTypeURI, &action, &limit)
-		if err != nil {
-			return err
-		}
-
-		//TODO: only service?
-		_, service, _ := projects.Find(cluster, projectUUID, serviceType, nil, targetTypeURI, action)
-
-		rate, exists := service.Rates[*targetTypeURI]
-		if exists {
-
-			rate.Actions[*action] = &RateLimitAction{
-				Name:  *action,
-				Limit: *limit,
+	if filter.withRates {
+		queryStr, joinArgs = filter.PrepareQuery(projectRatesReportQuery)
+		whereStr, whereArgs = db.BuildSimpleWhereClause(fields, len(joinArgs))
+		err = db.ForeachRow(db.DB, fmt.Sprintf(queryStr, whereStr), append(joinArgs, whereArgs...), func(rows *sql.Rows) error {
+			var (
+				projectUUID string
+				serviceID,
+				targetTypeURI,
+				action,
+				limit *string
+			)
+			err := rows.Scan(&projectUUID, &serviceID, &targetTypeURI, &action, &limit)
+			if err != nil {
+				return err
 			}
-		}
 
-		service.Rates[*targetTypeURI].Actions[*action] = &RateLimitAction{
-			Name:  *action,
-			Limit: *limit,
-		}
+			_, service, _ := projects.Find(cluster, projectUUID, serviceID, nil, targetTypeURI, action)
 
-		return nil
-	})
-	if err != nil {
-		return nil, err
+			if service != nil {
+				rate, exists := service.Rates[*targetTypeURI]
+				if !exists {
+					rate.Actions[*action] = &RateLimitAction{
+						Name:  *action,
+						Limit: *limit,
+					}
+				}
+
+			}
+
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	//flatten result (with stable order to keep the tests happy)
@@ -359,14 +350,16 @@ func (p projects) Find(cluster *limes.Cluster, projectUUID string, serviceType, 
 		project.Services[*serviceType] = service
 	}
 
-	if resourceName == nil || !cluster.HasResource(*serviceType, *resourceName) {
-		return project, service, nil
+	var resource *ProjectResource
+	if resourceName != nil && cluster.HasResource(*serviceType, *resourceName) {
+		resource, exists := service.Resources[*resourceName]
+		if !exists {
+			resource = &ProjectResource{
+				ResourceInfo: cluster.InfoForResource(*serviceType, *resourceName),
+			}
+			service.Resources[*resourceName] = resource
+		}
 	}
-
-	resource := &ProjectResource{
-		ResourceInfo: cluster.InfoForResource(*serviceType, *resourceName),
-	}
-	service.Resources[*resourceName] = resource
 
 	if targetTypeURI == nil {
 		return project, service, resource
@@ -379,7 +372,6 @@ func (p projects) Find(cluster *limes.Cluster, projectUUID string, serviceType, 
 			Actions:       make(RateLimitActions),
 		}
 		service.Rates[*targetTypeURI] = rate
-		return project, service, resource
 	}
 
 	if action == nil {

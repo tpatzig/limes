@@ -91,7 +91,7 @@ func (u *QuotaUpdater) ValidateInput(input ServiceQuotas, dbi db.Interface) erro
 	//for project scope, we also need a project report for validation
 	var projectReport *reports.Project
 	if u.Project != nil {
-		projectReport, err = GetProjectReport(u.Cluster, *u.Domain, *u.Project, dbi, reports.Filter{}, false)
+		projectReport, err = GetProjectReport(u.Cluster, *u.Domain, *u.Project, dbi, reports.ProjectFilter{})
 		if err != nil {
 			return err
 		}

@@ -93,7 +93,7 @@ type ProjectRateLimit struct {
   ServiceID     int64  `db:"service_id"`
   TargetTypeURI string `db:"target_type_uri"`
   Action        string `db:"action"`
-  Limit         string `db:"limit"`
+  Limit         string `db:"rate_limit"`
 }
 
 //InitGorp is used by Init() to setup the ORM part of the database connection.

@@ -79,6 +79,16 @@ INSERT INTO project_resources (service_id, name, quota, usage, backend_quota, su
 INSERT INTO project_resources (service_id, name, quota, usage, backend_quota, subresources) VALUES (8, 'capacity', 10, 2, 10, '');
 INSERT INTO project_resources (service_id, name, quota, usage, backend_quota, subresources) VALUES (8, 'external_things', 1, 0, 1, '');
 
+-- project rate limits
+-- shared
+INSERT INTO project_rate_limits (service_id, target_type_uri, action, rate_limit) VALUES (1, 'service/shared/action', 'create', '5r/m');
+INSERT INTO project_rate_limits (service_id, target_type_uri, action, rate_limit) VALUES (1, 'service/shared/hase', 'update', '2r/m');
+INSERT INTO project_rate_limits (service_id, target_type_uri, action, rate_limit) VALUES (1, 'service/shared/hase', 'delete', '2r/30m');
+-- unshared
+INSERT INTO project_rate_limits (service_id, target_type_uri, action, rate_limit) VALUES (2, 'service/unshared/action', 'create', '5r/m');
+INSERT INTO project_rate_limits (service_id, target_type_uri, action, rate_limit) VALUES (2, 'service/unshared/hase', 'update', '2r/m');
+INSERT INTO project_rate_limits (service_id, target_type_uri, action, rate_limit) VALUES (2, 'service/unshared/hase', 'delete', '2r/30m');
+
 -- insert some bullshit data that should be filtered out by the pkg/reports/ logic
 -- (cluster "north", service "weird" and resource "items" are not configured)
 INSERT INTO cluster_services (id, cluster_id, type, scraped_at) VALUES (101, 'north', 'unshared', 1000);
