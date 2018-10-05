@@ -174,7 +174,6 @@ func (r *ProjectRateLimits) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-
 //RateLimitActions provides a fast lookup of rate limit actions using a map, but serializes
 //to JSON as a list.
 type RateLimitActions map[string]*RateLimitAction
