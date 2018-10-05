@@ -9,7 +9,7 @@
         "area": "shared",
         "rates": [
           {
-            "targetTypeURI": "service/shared/action",
+            "target_type_uri": "service/shared/action",
             "actions": [
               {
                 "name": "create",
@@ -18,7 +18,7 @@
             ]
           },
           {
-            "targetTypeURI": "service/shared/hase",
+            "target_type_uri": "service/shared/hase",
             "actions": [
               {
                 "name": "update",
@@ -38,7 +38,7 @@
         "area": "unshared",
         "rates": [
           {
-            "targetTypeURI": "service/unshared/action",
+            "target_type_uri": "service/unshared/action",
             "actions": [
               {
                 "name": "create",
@@ -47,7 +47,7 @@
             ]
           },
           {
-            "targetTypeURI": "service/unshared/hase",
+            "target_type_uri": "service/unshared/hase",
             "actions": [
               {
                 "name": "update",
