@@ -44,7 +44,7 @@ type Project struct {
 //a single backend service.
 type ProjectService struct {
 	limes.ServiceInfo
-	Resources ProjectResources  `json:"resources,keepempty,omitempty"`
+	Resources ProjectResources  `json:"resources,keepempty"`
 	Rates     ProjectRateLimits `json:"rates,omitempty"`
 	ScrapedAt int64             `json:"scraped_at,omitempty"`
 }
@@ -351,10 +351,55 @@ func GetProjects(cluster *limes.Cluster, domainID int64, projectID *int64, dbi d
 	sort.Strings(uuids)
 	result := make([]*Project, len(projects))
 	for idx, uuid := range uuids {
+		project := projects[uuid]
+		for _, service := range project.Services {
+			service.Rates = sortRateLimits(service.Rates)
+		}
+
 		result[idx] = projects[uuid]
 	}
 
 	return result, nil
+}
+
+func sortRateLimits(limits ProjectRateLimits) ProjectRateLimits {
+	if limits == nil {
+		return nil
+	}
+
+	targetTypeURIs := make([]string, 0, len(limits))
+
+	for ttu := range limits {
+		targetTypeURIs = append(targetTypeURIs, ttu)
+	}
+	sort.Strings(targetTypeURIs)
+
+	result := make(ProjectRateLimits, len(limits))
+	for _, ttu := range targetTypeURIs {
+		limits[ttu].Actions = sortRateLimitActions(limits[ttu].Actions)
+		result[ttu] = limits[ttu]
+	}
+	return result
+}
+
+func sortRateLimitActions(actions RateLimitActions) RateLimitActions {
+	if actions == nil {
+		return nil
+	}
+
+	actionNames := make([]string, 0, len(actions))
+
+	for name := range actions {
+		actionNames = append(actionNames, name)
+	}
+	sort.Strings(actionNames)
+
+	result := make(RateLimitActions, len(actions))
+	for _, name := range actionNames {
+		result[name] = actions[name]
+	}
+
+	return result
 }
 
 type projects map[string]*Project
