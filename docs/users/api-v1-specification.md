@@ -88,7 +88,6 @@ Returns 200 (OK) on success. Result is a JSON document like:
               ]
             }
           ],
-        ],
           "scraped_at": 1486738599
         },
         {

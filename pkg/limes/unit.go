@@ -77,14 +77,6 @@ func (u Unit) Base() (Unit, uint64) {
 		return UnitBytes, 1 << 50
 	case UnitExbibytes:
 		return UnitBytes, 1 << 60
-	case UnitSecond:
-		return UnitSecond, 1
-	case UnitMinute:
-		return UnitMinute, 1
-	case UnitHour:
-		return UnitHour, 1
-	case UnitDay:
-		return UnitDay, 1
 	default:
 		return u, 1
 	}
