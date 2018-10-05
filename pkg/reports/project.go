@@ -44,7 +44,7 @@ type Project struct {
 //a single backend service.
 type ProjectService struct {
 	limes.ServiceInfo
-	Resources ProjectResources  `json:"resources,keepempty"`
+	Resources ProjectResources  `json:"resources,keepempty,omitempty"`
 	Rates     ProjectRateLimits `json:"rates,omitempty"`
 	ScrapedAt int64             `json:"scraped_at,omitempty"`
 }
@@ -144,10 +144,6 @@ func (r *ProjectResources) UnmarshalJSON(b []byte) error {
 //to JSON as a list.
 type ProjectRateLimits map[string]*ProjectRateLimit
 
-//RateLimitActions provides a fast lookup of rate limit actions using a map, but serializes
-//to JSON as a list.
-type RateLimitActions map[string]*RateLimitAction
-
 //MarshalJSON implements the json.Marshaler interface.
 func (r ProjectRateLimits) MarshalJSON() ([]byte, error) {
 	//serialize with ordered keys to ensure testcase stability
@@ -175,6 +171,41 @@ func (r *ProjectRateLimits) UnmarshalJSON(b []byte) error {
 		t[pr.TargetTypeURI] = pr
 	}
 	*r = ProjectRateLimits(t)
+	return nil
+}
+
+
+//RateLimitActions provides a fast lookup of rate limit actions using a map, but serializes
+//to JSON as a list.
+type RateLimitActions map[string]*RateLimitAction
+
+//MarshalJSON implements the json.Marshaler interface.
+func (r RateLimitActions) MarshalJSON() ([]byte, error) {
+	//serialize with ordered keys to ensure testcase stability
+	actionNames := make([]string, 0, len(r))
+	for actionName := range r {
+		actionNames = append(actionNames, actionName)
+	}
+	sort.Strings(actionNames)
+	list := make([]*RateLimitAction, len(r))
+	for idx, name := range actionNames {
+		list[idx] = r[name]
+	}
+	return json.Marshal(list)
+}
+
+//UnmarshalJSON implements the json.Unmarshaler interface
+func (r *RateLimitActions) UnmarshalJSON(b []byte) error {
+	tmp := make([]*RateLimitAction, 0)
+	err := json.Unmarshal(b, &tmp)
+	if err != nil {
+		return err
+	}
+	t := make(RateLimitActions)
+	for _, pr := range tmp {
+		t[pr.Name] = pr
+	}
+	*r = RateLimitActions(t)
 	return nil
 }
 
@@ -295,6 +326,13 @@ func GetProjects(cluster *limes.Cluster, domainID int64, projectID *int64, dbi d
 						Limit: *limit,
 					}
 				}
+				rate.Actions[*action].Name = *action
+				rate.Actions[*action].Limit = *limit
+
+				// show only rates
+				if filter.onlyRates {
+					service.Resources = nil
+				}
 
 			}
 
@@ -352,7 +390,7 @@ func (p projects) Find(cluster *limes.Cluster, projectUUID string, serviceType, 
 
 	var resource *ProjectResource
 	if resourceName != nil && cluster.HasResource(*serviceType, *resourceName) {
-		resource, exists := service.Resources[*resourceName]
+		resource, exists = service.Resources[*resourceName]
 		if !exists {
 			resource = &ProjectResource{
 				ResourceInfo: cluster.InfoForResource(*serviceType, *resourceName),
