@@ -88,7 +88,7 @@ type ProjectResource struct {
 	SubresourcesJSON string `db:"subresources"`
 }
 
-//RateLimit contains a record from the `rate_limits` table.
+//ProjectRateLimit contains a record from the `rate_limits` table.
 type ProjectRateLimit struct {
 	ServiceID     int64  `db:"service_id"`
 	TargetTypeURI string `db:"target_type_uri"`
