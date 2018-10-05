@@ -137,10 +137,10 @@ var SQLMigrations = map[string]string{
 	"006_add_cluster_resources_subcapacities.up.sql": `
 		ALTER TABLE cluster_resources ADD COLUMN subcapacities TEXT NOT NULL DEFAULT '';
 	`,
-  "007_add_project_rate_limits.down.sql": `
+	"007_add_project_rate_limits.down.sql": `
 		DROP TABLE project_rate_limits;
 	`,
-  "007_add_project_rate_limits.up.sql": `
+	"007_add_project_rate_limits.up.sql": `
 		CREATE TABLE project_rate_limits (
       service_id      BIGINT NOT NULL REFERENCES project_services ON DELETE CASCADE,
       target_type_uri TEXT NOT NULL,

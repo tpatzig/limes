@@ -95,8 +95,8 @@ func ReadFilter(r *http.Request) Filter {
 
 //ReadProjectFilter extracts a ProjectFilter from the given Request.
 func ReadProjectFilter(r *http.Request) ProjectFilter {
-  f := ProjectFilter{
-  	Filter: ReadFilter(r),
+	f := ProjectFilter{
+		Filter: ReadFilter(r),
 	}
 
 	query := r.URL.Query()
@@ -113,7 +113,7 @@ func ReadProjectFilter(r *http.Request) ProjectFilter {
 	}
 	f.onlyRates = onlyRates
 
-  return f
+	return f
 }
 
 var filterPrepareRx = regexp.MustCompile(`{{AND ([a-z.]+) = \$(service_type|resource_name)}}`)

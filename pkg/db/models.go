@@ -90,10 +90,10 @@ type ProjectResource struct {
 
 //RateLimit contains a record from the `rate_limits` table.
 type ProjectRateLimit struct {
-  ServiceID     int64  `db:"service_id"`
-  TargetTypeURI string `db:"target_type_uri"`
-  Action        string `db:"action"`
-  Limit         string `db:"rate_limit"`
+	ServiceID     int64  `db:"service_id"`
+	TargetTypeURI string `db:"target_type_uri"`
+	Action        string `db:"action"`
+	Limit         string `db:"rate_limit"`
 }
 
 //InitGorp is used by Init() to setup the ORM part of the database connection.
@@ -108,5 +108,5 @@ func InitGorp() {
 	DB.AddTableWithName(Project{}, "projects").SetKeys(true, "id")
 	DB.AddTableWithName(ProjectService{}, "project_services").SetKeys(true, "id")
 	DB.AddTableWithName(ProjectResource{}, "project_resources").SetKeys(false, "service_id", "name")
-  DB.AddTableWithName(ProjectRateLimit{}, "project_rate_limits").SetKeys(false, "service_id", "target_type_uri", "action")
+	DB.AddTableWithName(ProjectRateLimit{}, "project_rate_limits").SetKeys(false, "service_id", "target_type_uri", "action")
 }
